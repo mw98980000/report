@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>火災搶救報告書產出工具｜臺北市政府消防局第一救災救護大隊</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/docx/8.5.0/docx.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --red:#C0392B;--red-light:#F9ECEC;--gray:#4A4A4A;--gray-light:#F5F5F5;
+  --border:#D8D8D8;--white:#FFFFFF;--text:#2C2C2C;--sub:#7A7A7A;
+  --success:#27AE60;--warn:#E67E22;
+}
+body{font-family:'Microsoft JhengHei','微軟正黑體',sans-serif;font-size:14px;color:var(--text);background:#F0F0F0;min-height:100vh}
+header{background:var(--red);color:#fff;padding:16px 32px;display:flex;align-items:center;gap:14px;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+header .logo{font-size:22px;font-weight:700;letter-spacing:2px;white-space:nowrap}
+header .sub{font-size:13px;opacity:.85;margin-top:2px}
+.container{max-width:900px;margin:32px auto;padding:0 20px}
+.card{background:var(--white);border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.1);padding:28px 32px;margin-bottom:20px}
+.card-title{font-size:16px;font-weight:700;color:var(--red);margin-bottom:4px;display:flex;align-items:center;gap:8px}
+.card-title::before{content:'';display:inline-block;width:4px;height:18px;background:var(--red);border-radius:2px}
+.card-sub{font-size:12px;color:var(--sub);margin-bottom:20px;padding-left:12px}
+.step-row{display:flex;align-items:center;gap:6px;margin-bottom:16px}
+.step-badge{background:var(--red);color:#fff;font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px;white-space:nowrap}
+.step-label{font-size:13px;color:var(--sub)}
+.field{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}
+.field label{font-size:13px;font-weight:500;color:var(--gray)}
+.field input,.field select,.field textarea{border:1px solid var(--border);border-radius:6px;padding:8px 12px;font-size:13px;color:var(--text);font-family:inherit;width:100%;background:var(--white)}
+.field textarea{resize:vertical;min-height:80px;line-height:1.6}
+.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--red)}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+.upload-zone{border:2px dashed var(--border);border-radius:8px;padding:36px 20px;text-align:center;cursor:pointer;transition:.15s;position:relative;background:var(--gray-light)}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--red);background:var(--red-light)}
+.upload-zone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.upload-zone .icon{font-size:32px;margin-bottom:8px;color:var(--sub)}
+.upload-zone .lbl{font-size:14px;font-weight:500;color:var(--gray)}
+.upload-zone .hint{font-size:12px;color:var(--sub);margin-top:4px}
+.upload-status{margin-top:12px;font-size:13px;padding:8px 14px;border-radius:6px;display:none}
+.upload-status.ok{background:#EAF7EE;color:var(--success);display:block}
+.upload-status.err{background:#FEF0EE;color:var(--red);display:block}
+.preview-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:12px;overflow:auto;display:block;max-height:280px}
+.preview-table th{background:var(--gray-light);padding:6px 10px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap;position:sticky;top:0}
+.preview-table td{padding:5px 10px;border-bottom:1px solid #EBEBEB;white-space:nowrap;max-width:200px;overflow:hidden;text-overflow:ellipsis}
+.preview-table tr:hover td{background:#FAFAFA}
+.section-divider{border:none;border-top:1px solid var(--border);margin:20px 0}
+.tag{font-size:12px;padding:3px 10px;border-radius:99px;border:1px solid var(--border);background:var(--gray-light);color:var(--sub);cursor:pointer;display:inline-block;margin:2px}
+.tag:hover,.tag.sel{background:var(--red-light);border-color:var(--red);color:var(--red)}
+.photo-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.photo-card{border:1px solid var(--border);border-radius:6px;padding:12px;background:var(--gray-light)}
+.photo-card .cap{font-size:12px;font-weight:500;color:var(--gray);margin-bottom:8px}
+.photo-zone-sm{border:1px dashed var(--border);border-radius:6px;padding:20px 10px;text-align:center;cursor:pointer;position:relative;min-height:70px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;background:#fff}
+.photo-zone-sm:hover{border-color:var(--red);background:var(--red-light)}
+.photo-zone-sm input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.photo-zone-sm .phl{font-size:12px;color:var(--sub)}
+.photo-preview-sm{width:100%;height:70px;object-fit:cover;border-radius:4px;display:none;margin-bottom:4px}
+.ph-clear-sm{font-size:11px;color:var(--red);cursor:pointer;background:none;border:none;font-family:inherit;padding:0;display:none}
+.btn-primary{padding:10px 28px;background:var(--red);border:none;border-radius:6px;color:#fff;font-weight:700;font-size:14px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:8px;transition:.15s}
+.btn-primary:hover{background:#A93226}
+.btn-primary:disabled{background:#CCC;cursor:not-allowed}
+.btn-secondary{padding:10px 20px;background:var(--white);border:1px solid var(--border);border-radius:6px;color:var(--gray);font-size:13px;cursor:pointer;font-family:inherit}
+.btn-secondary:hover{background:var(--gray-light)}
+.actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:8px}
+.progress-wrap{margin-top:16px;display:none}
+.progress-bar{height:6px;background:#EEE;border-radius:99px;overflow:hidden}
+.progress-fill{height:100%;background:var(--red);width:0;transition:width .3s;border-radius:99px}
+.progress-label{font-size:12px;color:var(--sub);margin-top:6px;text-align:center}
+.notice{background:var(--red-light);border-left:3px solid var(--red);padding:10px 14px;border-radius:0 6px 6px 0;font-size:13px;color:var(--red);margin-bottom:16px;line-height:1.6}
+.success-banner{background:#EAF7EE;border:1px solid #A9DDB8;border-radius:8px;padding:16px 20px;margin-top:16px;display:none;align-items:center;gap:12px}
+.success-banner .icon{font-size:24px}
+.success-banner .msg{font-size:14px;font-weight:500;color:var(--success)}
+.success-banner .sub{font-size:12px;color:var(--sub);margin-top:2px}
+.hydrant-item{background:var(--gray-light);border-radius:6px;padding:12px 14px;margin-bottom:8px;border:1px solid var(--border)}
+.hyd-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.hyd-label{font-size:12px;font-weight:600;color:var(--gray)}
+.btn-del-sm{font-size:11px;color:var(--red);cursor:pointer;background:none;border:1px solid var(--border);border-radius:4px;padding:2px 8px;font-family:inherit}
+.time-row{display:flex;align-items:center;gap:4px}
+.time-row select{flex-shrink:0;padding:7px 4px;font-size:13px;border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:inherit;background:#fff}
+.time-sep{font-size:13px;color:var(--sub);flex-shrink:0}
+.computed{background:var(--gray-light);border:1px solid var(--border);border-radius:6px;padding:8px 12px;font-size:13px;color:var(--success);font-weight:500}
+.computed.err{color:var(--warn)}
+.v-list{background:var(--gray-light);border:1px solid var(--border);border-radius:6px;padding:8px 12px}
+.v-row{display:grid;grid-template-columns:1fr 60px;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)}
+.v-row:last-child{border-bottom:none}
+.v-cnt{width:60px;border:1px solid var(--border);border-radius:4px;padding:4px 6px;font-size:13px;text-align:center;font-family:inherit;background:#fff}
+.v-total{display:flex;justify-content:space-between;font-size:13px;font-weight:600;padding-top:8px;border-top:1px solid var(--border);margin-top:4px}
+.v-total-num{color:var(--red);font-size:16px}
+.section-unit{background:var(--gray-light);border:1px solid var(--border);border-radius:8px;padding:14px 16px;margin-bottom:10px}
+.unit-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.unit-lbl{font-size:13px;font-weight:600;color:var(--gray)}
+footer{text-align:center;font-size:12px;color:var(--sub);padding:24px;margin-top:8px}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo">🚒 搶救報告書產出工具</div>
+    <div class="sub">臺北市政府消防局第一救災救護大隊｜大隊彙整專用</div>
+  </div>
+</header>
+
+<div class="container">
+
+<!-- STEP 1: 基本資料 -->
+<div class="card">
+  <div class="card-title">壹、火災概要</div>
+  <div class="card-sub">填寫本次火災事件的基本資訊</div>
+
+  <div class="grid-2">
+    <div class="field"><label>發生地點</label><input type="text" id="location" placeholder="臺北市○○區○○路○號"/></div>
+    <div class="field"><label>火警等級</label>
+      <select id="fire_level"><option value="">請選擇</option><option>1級火災</option><option>2級火災</option><option>3級火災</option><option>4級火災</option><option>5級火災</option></select>
+    </div>
+  </div>
+
+  <div class="field"><label>時間資料</label></div>
+  <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">
+    <div style="display:grid;grid-template-columns:80px 1fr;align-items:center;gap:10px">
+      <span style="font-size:13px;color:var(--sub)">報案時間</span>
+      <div class="time-row" id="tr_rp"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:80px 1fr;align-items:center;gap:10px">
+      <span style="font-size:13px;color:var(--sub)">到達時間</span>
+      <div class="time-row" id="tr_ar"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:80px 1fr;align-items:center;gap:10px">
+      <span style="font-size:13px;color:var(--sub)">控制時間</span>
+      <div class="time-row" id="tr_ct"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:80px 1fr;align-items:center;gap:10px">
+      <span style="font-size:13px;color:var(--sub)">撲滅時間</span>
+      <div class="time-row" id="tr_ex"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:80px 1fr;align-items:center;gap:10px">
+      <span style="font-size:13px;color:var(--sub)">殘火處理</span>
+      <div class="time-row" id="tr_rs"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:80px 1fr;align-items:center;gap:10px">
+      <span style="font-size:13px;color:var(--sub)">救災合計</span>
+      <div class="computed" id="totalTime">— 請填入到達及殘火處理時間</div>
+    </div>
+  </div>
+
+  <div class="field"><label>出動車輛種類及數量</label></div>
+  <div class="v-list" style="margin-bottom:16px">
+    <div class="v-row"><span>水箱車</span><input class="v-cnt" type="number" min="0" value="0" id="v0" oninput="calcV()"></div>
+    <div class="v-row"><span>直線雲梯車</span><input class="v-cnt" type="number" min="0" value="0" id="v1" oninput="calcV()"></div>
+    <div class="v-row"><span>曲折雲梯車</span><input class="v-cnt" type="number" min="0" value="0" id="v2" oninput="calcV()"></div>
+    <div class="v-row"><span>四輪驅動吉普車／災情勘查車</span><input class="v-cnt" type="number" min="0" value="0" id="v3" oninput="calcV()"></div>
+    <div class="v-row"><span>化學車</span><input class="v-cnt" type="number" min="0" value="0" id="v4" oninput="calcV()"></div>
+    <div class="v-row"><span>化學災害處理車</span><input class="v-cnt" type="number" min="0" value="0" id="v5" oninput="calcV()"></div>
+    <div class="v-row"><span>水庫車</span><input class="v-cnt" type="number" min="0" value="0" id="v6" oninput="calcV()"></div>
+    <div class="v-row"><span>救助器材車</span><input class="v-cnt" type="number" min="0" value="0" id="v7" oninput="calcV()"></div>
+    <div class="v-row"><span>空壓車</span><input class="v-cnt" type="number" min="0" value="0" id="v8" oninput="calcV()"></div>
+    <div class="v-row"><span>排煙車</span><input class="v-cnt" type="number" min="0" value="0" id="v9" oninput="calcV()"></div>
+    <div class="v-row"><span>照明車</span><input class="v-cnt" type="number" min="0" value="0" id="v10" oninput="calcV()"></div>
+    <div class="v-row"><span>消防救災機車</span><input class="v-cnt" type="number" min="0" value="0" id="v11" oninput="calcV()"></div>
+    <div class="v-row"><span>救護車</span><input class="v-cnt" type="number" min="0" value="0" id="v12" oninput="calcV()"></div>
+    <div class="v-row"><span>加護型救護車</span><input class="v-cnt" type="number" min="0" value="0" id="v13" oninput="calcV()"></div>
+    <div class="v-row"><span>幕僚作業車</span><input class="v-cnt" type="number" min="0" value="0" id="v14" oninput="calcV()"></div>
+    <div class="v-row"><span>救災指揮車</span><input class="v-cnt" type="number" min="0" value="0" id="v15" oninput="calcV()"></div>
+    <div class="v-total"><span>車輛總計</span><span class="v-total-num" id="vTotal">0 輛</span></div>
+  </div>
+
+  <div class="grid-3">
+    <div class="field"><label>消防人員（名）</label><input type="number" id="ff_total" placeholder="71"/></div>
+    <div class="field"><label>義消（名）</label><input type="number" id="vol_total" value="0"/></div>
+    <div class="field"><label>財物損失</label><input type="text" id="prop_loss" placeholder="約○萬元"/></div>
+  </div>
+  <div class="grid-3">
+    <div class="field"><label>風向</label><select id="wind_dir"><option>東北風</option><option>北風</option><option>西北風</option><option>西風</option><option>西南風</option><option>南風</option><option>東南風</option><option>東風</option><option>靜風</option></select></div>
+    <div class="field"><label>天候</label><select id="weather"><option>晴</option><option>多雲</option><option>陰</option><option>雨</option><option>大雨</option><option>霧</option></select></div>
+    <div class="field"><label>相對濕度（%）</label><input type="number" id="humidity" placeholder="85"/></div>
+  </div>
+  <div class="field"><label>起火原因</label>
+    <div style="margin-bottom:6px">
+      <span class="tag" onclick="selTag(this,'cause','待查')">待查</span>
+      <span class="tag" onclick="selTag(this,'cause','電氣因素')">電氣因素</span>
+      <span class="tag" onclick="selTag(this,'cause','縱火')">縱火</span>
+      <span class="tag" onclick="selTag(this,'cause','菸蒂')">菸蒂</span>
+      <span class="tag" onclick="selTag(this,'cause','瓦斯外洩')">瓦斯外洩</span>
+      <span class="tag" onclick="selTag(this,'cause','烹飪不慎')">烹飪不慎</span>
+      <span class="tag" onclick="selTag(this,'cause','其他')">其他</span>
+    </div>
+    <input type="text" id="cause" placeholder="或直接輸入"/>
+  </div>
+  <div class="grid-2">
+    <div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <label style="font-size:13px;font-weight:500">死亡人數</label>
+        <input type="number" min="0" value="0" style="width:60px" id="death_cnt" oninput="syncCards('death',this.value)"/>人
+      </div>
+      <div id="death_cards"></div>
+    </div>
+    <div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <label style="font-size:13px;font-weight:500">受傷人數</label>
+        <input type="number" min="0" value="0" style="width:60px" id="injury_cnt" oninput="syncCards('injury',this.value)"/>人
+      </div>
+      <div id="injury_cards"></div>
+    </div>
+  </div>
+</div>
+
+<!-- STEP 2: 現場概要 -->
+<div class="card">
+  <div class="card-title">貳、現場概要</div>
+  <div class="card-sub">道路、建築物、照片、水源資料</div>
+
+  <div style="margin-bottom:14px">
+    <div style="font-size:13px;font-weight:500;margin-bottom:8px;color:var(--gray)">四周道路狀況</div>
+    <div style="display:flex;flex-direction:column;gap:6px">
+      <div style="display:grid;grid-template-columns:56px 1fr 80px 28px;gap:6px;align-items:center">
+        <div style="text-align:center;background:var(--gray-light);border:1px solid var(--border);border-radius:4px;padding:5px;font-size:13px;font-weight:600">東面</div>
+        <input type="text" id="road_e" placeholder="路名" style="border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:13px;font-family:inherit"/>
+        <input type="number" id="road_ew" placeholder="0.00" style="border:1px solid var(--border);border-radius:6px;padding:6px 8px;font-size:13px;font-family:inherit"/>
+        <span style="font-size:12px;color:var(--sub)">公尺</span>
+      </div>
+      <div style="display:grid;grid-template-columns:56px 1fr 80px 28px;gap:6px;align-items:center">
+        <div style="text-align:center;background:var(--gray-light);border:1px solid var(--border);border-radius:4px;padding:5px;font-size:13px;font-weight:600">南面</div>
+        <input type="text" id="road_s" placeholder="路名" style="border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:13px;font-family:inherit"/>
+        <input type="number" id="road_sw" placeholder="0.00" style="border:1px solid var(--border);border-radius:6px;padding:6px 8px;font-size:13px;font-family:inherit"/>
+        <span style="font-size:12px;color:var(--sub)">公尺</span>
+      </div>
+      <div style="display:grid;grid-template-columns:56px 1fr 80px 28px;gap:6px;align-items:center">
+        <div style="text-align:center;background:var(--gray-light);border:1px solid var(--border);border-radius:4px;padding:5px;font-size:13px;font-weight:600">西面</div>
+        <input type="text" id="road_w" placeholder="路名" style="border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:13px;font-family:inherit"/>
+        <input type="number" id="road_ww" placeholder="0.00" style="border:1px solid var(--border);border-radius:6px;padding:6px 8px;font-size:13px;font-family:inherit"/>
+        <span style="font-size:12px;color:var(--sub)">公尺</span>
+      </div>
+      <div style="display:grid;grid-template-columns:56px 1fr 80px 28px;gap:6px;align-items:center">
+        <div style="text-align:center;background:var(--gray-light);border:1px solid var(--border);border-radius:4px;padding:5px;font-size:13px;font-weight:600">北面</div>
+        <input type="text" id="road_n" placeholder="路名" style="border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:13px;font-family:inherit"/>
+        <input type="number" id="road_nw" placeholder="0.00" style="border:1px solid var(--border);border-radius:6px;padding:6px 8px;font-size:13px;font-family:inherit"/>
+        <span style="font-size:12px;color:var(--sub)">公尺</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-3" style="margin-bottom:14px">
+    <div class="field"><label>地上樓層數</label><input type="number" id="fl_above" placeholder="3"/></div>
+    <div class="field"><label>地下樓層數</label><input type="number" id="fl_below" value="0"/></div>
+    <div class="field"><label>建築構造</label><select id="structure"><option>RC造</option><option>磚造</option><option>鋼造</option><option>木造</option><option>鋼骨RC造</option><option>混合構造</option></select></div>
+  </div>
+  <div class="grid-3" style="margin-bottom:14px">
+    <div class="field"><label>建築用途</label><select id="usage"><option>住宅</option><option>商業</option><option>工廠</option><option>倉庫</option><option>辦公室</option><option>學校</option><option>醫療機構</option><option>其他</option></select></div>
+    <div class="field"><label>建築物面積（㎡）</label><input type="number" id="bld_area" placeholder="380"/></div>
+    <div class="field"><label>燃燒面積（㎡）</label><input type="number" id="burn_area" placeholder="16"/></div>
+  </div>
+
+  <hr class="section-divider">
+  <div style="font-size:13px;font-weight:500;margin-bottom:8px;color:var(--gray)">燃燒情形照片（至少4張）</div>
+  <div class="photo-grid" id="burnPhotoGrid">
+    <div class="photo-card"><div class="cap">燃燒情形照片 1</div><div class="photo-zone-sm" id="pz_b1" onclick="tF('pf_b1')"><input type="file" id="pf_b1" accept="image/*" onchange="lP(this,'pz_b1','pp_b1','pc_b1','pd_b1')"/><div class="phl" id="pd_b1">點擊上傳</div></div><img class="photo-preview-sm" id="pp_b1"/><button class="ph-clear-sm" id="pc_b1" onclick="cP('pf_b1','pz_b1','pp_b1','pc_b1','pd_b1')">✕ 移除</button><input type="text" style="margin-top:6px;width:100%;border:1px solid var(--border);border-radius:4px;padding:4px 8px;font-size:12px;font-family:inherit" placeholder="照片說明"/></div>
+    <div class="photo-card"><div class="cap">燃燒情形照片 2</div><div class="photo-zone-sm" id="pz_b2" onclick="tF('pf_b2')"><input type="file" id="pf_b2" accept="image/*" onchange="lP(this,'pz_b2','pp_b2','pc_b2','pd_b2')"/><div class="phl" id="pd_b2">點擊上傳</div></div><img class="photo-preview-sm" id="pp_b2"/><button class="ph-clear-sm" id="pc_b2" onclick="cP('pf_b2','pz_b2','pp_b2','pc_b2','pd_b2')">✕ 移除</button><input type="text" style="margin-top:6px;width:100%;border:1px solid var(--border);border-radius:4px;padding:4px 8px;font-size:12px;font-family:inherit" placeholder="照片說明"/></div>
+    <div class="photo-card"><div class="cap">燃燒情形照片 3</div><div class="photo-zone-sm" id="pz_b3" onclick="tF('pf_b3')"><input type="file" id="pf_b3" accept="image/*" onchange="lP(this,'pz_b3','pp_b3','pc_b3','pd_b3')"/><div class="phl" id="pd_b3">點擊上傳</div></div><img class="photo-preview-sm" id="pp_b3"/><button class="ph-clear-sm" id="pc_b3" onclick="cP('pf_b3','pz_b3','pp_b3','pc_b3','pd_b3')">✕ 移除</button><input type="text" style="margin-top:6px;width:100%;border:1px solid var(--border);border-radius:4px;padding:4px 8px;font-size:12px;font-family:inherit" placeholder="照片說明"/></div>
+    <div class="photo-card"><div class="cap">燃燒情形照片 4</div><div class="photo-zone-sm" id="pz_b4" onclick="tF('pf_b4')"><input type="file" id="pf_b4" accept="image/*" onchange="lP(this,'pz_b4','pp_b4','pc_b4','pd_b4')"/><div class="phl" id="pd_b4">點擊上傳</div></div><img class="photo-preview-sm" id="pp_b4"/><button class="ph-clear-sm" id="pc_b4" onclick="cP('pf_b4','pz_b4','pp_b4','pc_b4','pd_b4')">✕ 移除</button><input type="text" style="margin-top:6px;width:100%;border:1px solid var(--border);border-radius:4px;padding:4px 8px;font-size:12px;font-family:inherit" placeholder="照片說明"/></div>
+  </div>
+  <button class="btn-secondary" onclick="addBurnPhoto()" style="margin-top:10px">＋ 新增照片</button>
+
+  <hr class="section-divider">
+  <div style="font-size:13px;font-weight:500;margin-bottom:8px;color:var(--gray)">水源狀況</div>
+  <div id="hydrantList">
+    <div class="hydrant-item"><div class="hyd-header"><span class="hyd-label">消防栓 1</span><button class="btn-del-sm" onclick="delH(this)">✕ 刪除</button></div>
+      <div class="grid-2" style="margin-bottom:8px"><div class="field"><label>消防栓位置</label><input type="text" placeholder="如：保儀路181號左5m"/></div><div class="field"><label>型式</label><select><option value="">請選擇</option><option>地下式</option><option>地上式</option></select></div></div>
+      <div class="grid-3"><div class="field"><label>管徑</label><select><option value="">請選擇</option><option>75mm</option><option>100mm</option><option>150mm</option><option>200mm</option></select></div><div class="field"><label>使用情形</label><select><option value="">請選擇</option><option>堪用</option><option>不堪用</option><option>未使用</option></select></div><div class="field"><label>距離火場</label><div style="display:flex;gap:4px;align-items:center"><input type="number" placeholder="0" style="border:1px solid var(--border);border-radius:6px;padding:7px 8px;font-family:inherit;width:100%"/><span style="font-size:12px;color:var(--sub);white-space:nowrap">公尺</span></div></div></div>
+      <div class="grid-2" style="margin-top:8px"><div class="field"><label>使用車輛</label><input type="text" placeholder="如：木柵15"/></div><div class="field"><label>備註</label><input type="text" placeholder="選填"/></div></div>
+    </div>
+  </div>
+  <button class="btn-secondary" onclick="addH()" style="margin-top:8px">＋ 新增消防栓</button>
+</div>
+
+<!-- STEP 3: 從 CSV 匯入分隊資料 -->
+<div class="card">
+  <div class="card-title">匯入各分隊填報資料（Google 表單 CSV）</div>
+  <div class="card-sub">到 Google 試算表 → 檔案 → 下載 → CSV 格式，再上傳至此</div>
+
+  <div class="notice">下面單位填完 Google 表單後，你到試算表把「表單回應」工作表匯出成 CSV，上傳至此自動解析。</div>
+
+  <div class="upload-zone" id="csvZone"
+    ondragover="event.preventDefault();this.classList.add('drag')"
+    ondragleave="this.classList.remove('drag')"
+    ondrop="handleDrop(event)">
+    <input type="file" id="csvFile" accept=".csv" onchange="loadCSV(this)"/>
+    <div class="icon">📄</div>
+    <div class="lbl">點擊或拖曳 CSV 檔案至此</div>
+    <div class="hint">Google 試算表匯出的 .csv 格式</div>
+  </div>
+  <div class="upload-status" id="csvStatus"></div>
+  <div id="csvPreviewWrap" style="display:none;margin-top:12px">
+    <div style="font-size:13px;font-weight:500;margin-bottom:6px;color:var(--gray)">已匯入資料預覽</div>
+    <div style="overflow-x:auto"><table class="preview-table" id="csvPreview"></table></div>
+  </div>
+</div>
+
+<!-- STEP 4: 搶救部署 & 檢討 -->
+<div class="card">
+  <div class="card-title">參、搶救部署 ／ 肆、檢討分析</div>
+  <div class="card-sub">火災動態資料與檢討事項</div>
+
+  <div style="font-size:13px;font-weight:500;margin-bottom:8px;color:var(--gray)">火災動態資料（可手動填寫或後續修改）</div>
+  <div style="overflow-x:auto">
+    <table style="width:100%;border-collapse:collapse;font-size:13px">
+      <thead><tr>
+        <th style="background:var(--gray-light);padding:6px 10px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap">時間</th>
+        <th style="background:var(--gray-light);padding:6px 10px;text-align:left;border-bottom:1px solid var(--border)">動態資料</th>
+        <th style="background:var(--gray-light);padding:6px 10px;text-align:left;border-bottom:1px solid var(--border)">指揮官處置</th>
+        <th style="background:var(--gray-light);padding:6px 10px;border-bottom:1px solid var(--border)"></th>
+      </tr></thead>
+      <tbody id="dynTbody">
+        <tr>
+          <td style="padding:3px 6px"><input type="text" placeholder="19:51" style="width:65px;border:1px solid var(--border);border-radius:4px;padding:4px 6px;font-family:inherit;font-size:12px"/></td>
+          <td style="padding:3px 6px"><input type="text" placeholder="動態說明" style="width:100%;border:1px solid var(--border);border-radius:4px;padding:4px 6px;font-family:inherit;font-size:12px"/></td>
+          <td style="padding:3px 6px"><input type="text" placeholder="指揮官指示" style="width:100%;border:1px solid var(--border);border-radius:4px;padding:4px 6px;font-family:inherit;font-size:12px"/></td>
+          <td style="padding:3px 6px"><button onclick="this.closest('tr').remove()" style="color:var(--red);background:none;border:none;cursor:pointer;font-size:12px">✕</button></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <button class="btn-secondary" onclick="addDyn()" style="margin-top:8px">＋ 新增動態</button>
+
+  <hr class="section-divider">
+  <div style="font-size:13px;font-weight:500;margin-bottom:8px;color:var(--gray)">優點</div>
+  <div id="pros"><div class="field"><textarea placeholder="優點一"></textarea></div></div>
+  <button class="btn-secondary" onclick="addBlk('pros','優點')" style="margin-top:6px">＋ 新增優點</button>
+
+  <hr class="section-divider">
+  <div style="font-size:13px;font-weight:500;margin-bottom:8px;color:var(--gray)">缺點</div>
+  <div id="cons"><div class="field"><textarea placeholder="缺點一"></textarea></div></div>
+  <button class="btn-secondary" onclick="addBlk('cons','缺點')" style="margin-top:6px">＋ 新增缺點</button>
+
+  <hr class="section-divider">
+  <div style="font-size:13px;font-weight:500;margin-bottom:8px;color:var(--gray)">建議事項</div>
+  <div id="sugs"><div class="field"><textarea placeholder="建議事項一"></textarea></div></div>
+  <button class="btn-secondary" onclick="addBlk('sugs','建議')" style="margin-top:6px">＋ 新增建議</button>
+</div>
+
+<!-- STEP 5: 部署圖 & 安全管理照片 -->
+<div class="card">
+  <div class="card-title">搶救部署圖 ／ 火場救災安全管理照片</div>
+  <div class="card-sub">上傳甲種、乙種部署圖及安全管理照片，嵌入 Word 報告</div>
+
+  <div class="grid-2" style="margin-bottom:16px">
+    <div>
+      <div style="font-size:13px;font-weight:500;margin-bottom:8px;color:var(--gray)">甲種搶救部署圖</div>
+      <div class="photo-zone-sm" id="pz_da" onclick="tF('pf_da')"><input type="file" id="pf_da" accept="image/*,.pdf" onchange="lP(this,'pz_da','pp_da','pc_da','pd_da')"/><div class="phl" id="pd_da">JPG / PNG / PDF</div></div>
+      <img class="photo-preview-sm" id="pp_da" style="height:100px"/>
+      <button class="ph-clear-sm" id="pc_da" onclick="cP('pf_da','pz_da','pp_da','pc_da','pd_da')">✕ 移除</button>
+      <div class="field" style="margin-top:8px"><label>表期</label><input type="text" id="dep_a_date" placeholder="隨時報 / 115年○月○日"/></div>
+    </div>
+    <div>
+      <div style="font-size:13px;font-weight:500;margin-bottom:8px;color:var(--gray)">乙種搶救部署圖</div>
+      <div class="photo-zone-sm" id="pz_db" onclick="tF('pf_db')"><input type="file" id="pf_db" accept="image/*,.pdf" onchange="lP(this,'pz_db','pp_db','pc_db','pd_db')"/><div class="phl" id="pd_db">JPG / PNG / PDF</div></div>
+      <img class="photo-preview-sm" id="pp_db" style="height:100px"/>
+      <button class="ph-clear-sm" id="pc_db" onclick="cP('pf_db','pz_db','pp_db','pc_db','pd_db')">✕ 移除</button>
+      <div class="field" style="margin-top:8px"><label>表期</label><input type="text" id="dep_b_date" placeholder="隨時報 / 115年○月○日"/></div>
+    </div>
+  </div>
+
+  <hr class="section-divider">
+  <div style="font-size:13px;font-weight:500;margin-bottom:8px;color:var(--gray)">火場救災安全管理照片</div>
+  <div class="photo-grid" id="safetyList">
+    <div class="photo-card">
+      <div class="cap">安全管理照片 1</div>
+      <div class="photo-zone-sm" id="pz_sf1" onclick="tF('pf_sf1')"><input type="file" id="pf_sf1" accept="image/*" onchange="lP(this,'pz_sf1','pp_sf1','pc_sf1','pd_sf1')"/><div class="phl" id="pd_sf1">點擊上傳</div></div>
+      <img class="photo-preview-sm" id="pp_sf1"/>
+      <button class="ph-clear-sm" id="pc_sf1" onclick="cP('pf_sf1','pz_sf1','pp_sf1','pc_sf1','pd_sf1')">✕ 移除</button>
+      <input type="text" style="margin-top:6px;width:100%;border:1px solid var(--border);border-radius:4px;padding:4px 8px;font-size:12px;font-family:inherit" placeholder="說明（如：木柵11車後人員管制板）"/>
+    </div>
+  </div>
+  <button class="btn-secondary" onclick="addSafety()" style="margin-top:10px">＋ 新增安全管理照片</button>
+</div>
+
+<!-- 產出 -->
+<div class="card">
+  <div class="card-title">產出 Word 報告書</div>
+  <div class="card-sub">確認所有資料填寫完成後，點擊下方按鈕產出正式報告書</div>
+
+  <div class="actions">
+    <button class="btn-primary" id="generateBtn" onclick="generateWord()">
+      ⬇ 產出 Word 報告書（.docx）
+    </button>
+    <button class="btn-secondary" onclick="if(confirm('確定要清除所有填寫資料？'))location.reload()">清除重填</button>
+  </div>
+
+  <div class="progress-wrap" id="progressWrap">
+    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="progress-label" id="progressLabel">產出中，請稍候…</div>
+  </div>
+
+  <div class="success-banner" id="successBanner">
+    <div class="icon">✅</div>
+    <div>
+      <div class="msg">報告書產出成功！</div>
+      <div class="sub">檔案已自動下載，請存至指定資料夾。</div>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<footer>臺北市政府消防局第一救災救護大隊 火災搶救報告書產出工具 ｜ 僅供內部使用</footer>
+
+<script>
+// ── 時間下拉 ──
+const MO=Array.from({length:12},(_,i)=>i+1),DA=Array.from({length:31},(_,i)=>i+1),HH=Array.from({length:24},(_,i)=>i),MM=Array.from({length:60},(_,i)=>i),YY=[115,114,116,113];
+function mkSel(arr,pad,val,ev){
+  return `<select style="padding:6px 3px;font-size:13px;border:1px solid var(--border);border-radius:6px;font-family:inherit;background:#fff;color:var(--text)" ${ev?`onchange="${ev}"`:''}>${arr.map(v=>`<option value="${v}"${v===val?' selected':''}>${String(v).padStart(pad,'0')}</option>`).join('')}</select>`;
+}
+function mkSep(s){return `<span style="font-size:13px;color:var(--sub);padding:0 2px;flex-shrink:0">${s}</span>`;}
+const TDEF=[{id:'tr_rp',y:115,m:3,d:30,h:19,min:51},{id:'tr_ar',y:115,m:3,d:30,h:19,min:56},{id:'tr_ct',y:115,m:3,d:30,h:20,min:18},{id:'tr_ex',y:115,m:3,d:30,h:20,min:18},{id:'tr_rs',y:115,m:3,d:30,h:21,min:33}];
+TDEF.forEach(t=>{const el=document.getElementById(t.id);if(el)el.innerHTML=mkSel(YY,1,t.y,'calcTime()')+mkSep('年')+mkSel(MO,2,t.m,'calcTime()')+mkSep('月')+mkSel(DA,2,t.d,'calcTime()')+mkSep('日')+mkSel(HH,2,t.h,'calcTime()')+mkSep('時')+mkSel(MM,2,t.min,'calcTime()')+mkSep('分');});
+function getMin(id){const el=document.getElementById(id);if(!el)return 0;const s=el.querySelectorAll('select');if(s.length<5)return 0;return((parseInt(s[0].value)*365+parseInt(s[1].value)*31+parseInt(s[2].value))*1440)+parseInt(s[3].value)*60+parseInt(s[4].value);}
+function calcTime(){const diff=getMin('tr_rs')-getMin('tr_ar');const el=document.getElementById('totalTime');if(!el)return;if(diff<0){el.className='computed err';el.textContent='殘火時間早於到達時間，請確認';return;}const h=Math.floor(diff/60),m=diff%60;el.className='computed';el.textContent=(h>0?h+'小時':'')+(m>0?m+'分':'')+(diff===0?'0分':'');}
+calcTime();
+function getTimeStr(id){const el=document.getElementById(id);if(!el)return '';const s=el.querySelectorAll('select');if(s.length<5)return '';return`${s[0].value}年${String(s[1].value).padStart(2,'0')}月${String(s[2].value).padStart(2,'0')}日${String(s[3].value).padStart(2,'0')}時${String(s[4].value).padStart(2,'0')}分`;}
+
+// ── 車輛計算 ──
+function calcV(){const t=Array.from({length:16},(_,i)=>parseInt(document.getElementById('v'+i)?.value)||0).reduce((a,b)=>a+b,0);document.getElementById('vTotal').textContent=t+' 輛';}
+
+// ── 標籤選取 ──
+function selTag(el,fid,val){el.closest('div').querySelectorAll('.tag').forEach(t=>t.classList.remove('sel'));el.classList.add('sel');if(fid)document.getElementById(fid).value=val;}
+
+// ── 傷亡人員卡片 ──
+function syncCards(type,raw){
+  const cnt=Math.max(0,parseInt(raw)||0),cont=document.getElementById(type+'_cards'),cur=cont.querySelectorAll('.section-unit').length;
+  if(cnt>cur){for(let i=cur+1;i<=cnt;i++){const lbl=type==='death'?'死亡':'受傷';const cond=type==='death'?'<option>一氧化碳中毒</option><option>燒傷死亡</option><option>墜落死亡</option><option>其他</option>':'<option>輕傷（無需住院）</option><option>中傷（需住院）</option><option>重傷</option><option>燒傷</option><option>吸入性損傷</option><option>骨折</option><option>其他</option>';const d=document.createElement('div');d.className='section-unit';d.innerHTML=`<div style="font-size:12px;font-weight:600;color:var(--gray);margin-bottom:10px">${lbl}者 第${i}人</div><div class="grid-3" style="margin-bottom:8px"><div class="field"><label>姓名</label><input type="text" placeholder="姓名"/></div><div class="field"><label>性別</label><select><option value="">請選擇</option><option>男</option><option>女</option></select></div><div class="field"><label>身分證字號</label><input type="text" placeholder="A123456789" maxlength="10"/></div></div><div class="field" style="margin-bottom:8px"><label>出生年月日</label><div class="time-row">${mkSel(Array.from({length:80},(_,j)=>80-j),1,75)}${mkSep('年')}${mkSel(MO,2,1)}${mkSep('月')}${mkSel(DA,2,1)}${mkSep('日')}</div></div><div class="field" style="margin-bottom:8px"><label>住址</label><input type="text" placeholder="戶籍或居住地址"/></div><div class="grid-2"><div class="field"><label>發現樓層</label><select><option value="">請選擇</option>${['B4','B3','B2','B1','1樓','2樓','3樓','4樓','5樓','6樓','7樓','8樓','9樓','10樓以上','屋頂','戶外'].map(f=>`<option>${f}</option>`).join('')}</select></div><div class="field"><label>死傷情形</label><select><option value="">請選擇</option>${cond}</select></div></div><div class="field" style="margin-top:8px"><label>備考</label><input type="text" placeholder="補充說明"/></div>`;cont.appendChild(d);}}
+  else{const cards=cont.querySelectorAll('.section-unit');for(let i=cards.length-1;i>=cnt;i--)cards[i].remove();}
+}
+
+// ── 照片上傳 ──
+let burnPhotoCount=4,safetyCount=1;
+function tF(id){document.getElementById(id).click();}
+function lP(input,zid,pid,cid,did){const file=input.files[0];if(!file)return;const r=new FileReader();r.onload=e=>{const pr=document.getElementById(pid),cl=document.getElementById(cid),df=document.getElementById(did),zn=document.getElementById(zid);pr.src=e.target.result;pr.style.display='block';if(cl)cl.style.display='inline-block';if(df)df.style.display='none';zn.style.padding='0';zn.style.minHeight='auto';};r.readAsDataURL(file);}
+function cP(fid,zid,pid,cid,did){document.getElementById(fid).value='';const pr=document.getElementById(pid),cl=document.getElementById(cid),df=document.getElementById(did),zn=document.getElementById(zid);pr.src='';pr.style.display='none';if(cl)cl.style.display='none';if(df)df.style.display='block';zn.style.padding='20px 10px';zn.style.minHeight='70px';}
+function addBurnPhoto(){burnPhotoCount++;const n=burnPhotoCount,g=document.getElementById('burnPhotoGrid'),d=document.createElement('div');d.className='photo-card';const z=`pz_b${n}`,f=`pf_b${n}`,p=`pp_b${n}`,c=`pc_b${n}`,df=`pd_b${n}`;d.innerHTML=`<div class="cap">燃燒情形照片 ${n}</div><div class="photo-zone-sm" id="${z}" onclick="tF('${f}')"><input type="file" id="${f}" accept="image/*" onchange="lP(this,'${z}','${p}','${c}','${df}')"/><div class="phl" id="${df}">點擊上傳</div></div><img class="photo-preview-sm" id="${p}"/><button class="ph-clear-sm" id="${c}" onclick="cP('${f}','${z}','${p}','${c}','${df}')">✕ 移除</button><input type="text" style="margin-top:6px;width:100%;border:1px solid var(--border);border-radius:4px;padding:4px 8px;font-size:12px;font-family:inherit" placeholder="照片說明"/>`;g.appendChild(d);}
+function addSafety(){safetyCount++;const n=safetyCount,d=document.createElement('div');d.className='photo-card';const z=`pz_sf${n}`,f=`pf_sf${n}`,p=`pp_sf${n}`,c=`pc_sf${n}`,df=`pd_sf${n}`;d.innerHTML=`<div class="cap">安全管理照片 ${n}</div><div class="photo-zone-sm" id="${z}" onclick="tF('${f}')"><input type="file" id="${f}" accept="image/*" onchange="lP(this,'${z}','${p}','${c}','${df}')"/><div class="phl" id="${df}">點擊上傳</div></div><img class="photo-preview-sm" id="${p}"/><button class="ph-clear-sm" id="${c}" onclick="cP('${f}','${z}','${p}','${c}','${df}')">✕ 移除</button><input type="text" style="margin-top:6px;width:100%;border:1px solid var(--border);border-radius:4px;padding:4px 8px;font-size:12px;font-family:inherit" placeholder="說明"/>`;document.getElementById('safetyList').appendChild(d);}
+
+// ── 水源 ──
+let hCount=1;
+function addH(){hCount++;const d=document.createElement('div');d.className='hydrant-item';d.innerHTML=`<div class="hyd-header"><span class="hyd-label">消防栓 ${hCount}</span><button class="btn-del-sm" onclick="delH(this)">✕ 刪除</button></div><div class="grid-2" style="margin-bottom:8px"><div class="field"><label>消防栓位置</label><input type="text" placeholder="位置描述"/></div><div class="field"><label>型式</label><select><option value="">請選擇</option><option>地下式</option><option>地上式</option></select></div></div><div class="grid-3"><div class="field"><label>管徑</label><select><option value="">請選擇</option><option>75mm</option><option>100mm</option><option>150mm</option><option>200mm</option></select></div><div class="field"><label>使用情形</label><select><option value="">請選擇</option><option>堪用</option><option>不堪用</option><option>未使用</option></select></div><div class="field"><label>距離火場</label><div style="display:flex;gap:4px;align-items:center"><input type="number" placeholder="0" style="border:1px solid var(--border);border-radius:6px;padding:7px 8px;font-family:inherit;width:100%"/><span style="font-size:12px;color:var(--sub);white-space:nowrap">公尺</span></div></div></div><div class="grid-2" style="margin-top:8px"><div class="field"><label>使用車輛</label><input type="text" placeholder="車輛代號"/></div><div class="field"><label>備註</label><input type="text" placeholder="選填"/></div></div>`;document.getElementById('hydrantList').appendChild(d);}
+function delH(btn){const cards=document.querySelectorAll('.hydrant-item');if(cards.length>1)btn.closest('.hydrant-item').remove();else alert('至少保留一筆水源記錄');}
+
+// ── 動態表 & 文字區塊 ──
+function addDyn(){const tb=document.getElementById('dynTbody'),tr=document.createElement('tr');tr.innerHTML=`<td style="padding:3px 6px"><input type="text" placeholder="時間" style="width:65px;border:1px solid var(--border);border-radius:4px;padding:4px 6px;font-family:inherit;font-size:12px"/></td><td style="padding:3px 6px"><input type="text" placeholder="動態說明" style="width:100%;border:1px solid var(--border);border-radius:4px;padding:4px 6px;font-family:inherit;font-size:12px"/></td><td style="padding:3px 6px"><input type="text" placeholder="指揮官指示" style="width:100%;border:1px solid var(--border);border-radius:4px;padding:4px 6px;font-family:inherit;font-size:12px"/></td><td style="padding:3px 6px"><button onclick="this.closest('tr').remove()" style="color:var(--red);background:none;border:none;cursor:pointer;font-size:12px">✕</button></td>`;tb.appendChild(tr);}
+function addBlk(cid,lbl){const cont=document.getElementById(cid),d=document.createElement('div');d.className='field';d.style.marginTop='6px';const n=cont.querySelectorAll('textarea').length+1;d.innerHTML=`<textarea placeholder="${lbl}${n}"></textarea>`;cont.appendChild(d);}
+
+// ── CSV 匯入 ──
+let csvData=[];
+function handleDrop(e){e.preventDefault();document.getElementById('csvZone').classList.remove('drag');const file=e.dataTransfer.files[0];if(file&&file.name.endsWith('.csv'))parseCSV(file);else showCSVErr('請上傳 .csv 格式的檔案');}
+function loadCSV(input){const file=input.files[0];if(file)parseCSV(file);}
+function parseCSV(file){
+  Papa.parse(file,{header:true,skipEmptyLines:true,complete:r=>{
+    if(!r.data||r.data.length===0){showCSVErr('CSV 檔案沒有資料，請確認是否匯出正確的工作表');return;}
+    csvData=r.data;
+    const st=document.getElementById('csvStatus');st.className='upload-status ok';st.textContent=`✓ 成功匯入 ${r.data.length} 筆分隊填報資料（${Object.keys(r.data[0]).length} 個欄位）`;
+    const wrap=document.getElementById('csvPreviewWrap');wrap.style.display='block';
+    const tbl=document.getElementById('csvPreview');
+    const headers=Object.keys(r.data[0]);
+    tbl.innerHTML=`<thead><tr>${headers.slice(0,8).map(h=>`<th>${h}</th>`).join('')}${headers.length>8?'<th>…</th>':''}</tr></thead><tbody>${r.data.slice(0,5).map(row=>`<tr>${headers.slice(0,8).map(h=>`<td title="${row[h]||''}">${(row[h]||'').substring(0,20)}</td>`).join('')}${headers.length>8?'<td>…</td>':''}</tr>`).join('')}</tbody>`;
+  },error:()=>showCSVErr('CSV 解析失敗，請確認檔案格式')});
+}
+function showCSVErr(msg){const st=document.getElementById('csvStatus');st.className='upload-status err';st.textContent='✗ '+msg;}
+
+// ── 產出 Word ──
+async function generateWord(){
+  const btn=document.getElementById('generateBtn');
+  btn.disabled=true;
+  const pw=document.getElementById('progressWrap');pw.style.display='block';
+  const pf=document.getElementById('progressFill');
+  const pl=document.getElementById('progressLabel');
+  function prog(p,msg){pf.style.width=p+'%';pl.textContent=msg;}
+
+  try{
+    prog(10,'初始化文件結構…');
+    const {Document,Packer,Paragraph,TextRun,Table,TableRow,TableCell,AlignmentType,BorderStyle,WidthType,VerticalAlign}=docx;
+    const FONT='標楷體',S12=24,S14=28,S16=32,S10=20;
+    const IND1=480,IND2=720,IND3=960,IND4=1200;
+    const BD={style:BorderStyle.SINGLE,size:4,color:'000000'};
+    const ALL={top:BD,bottom:BD,left:BD,right:BD};
+
+    function txt(text,opts={}){return new TextRun({text:String(text||''),font:FONT,size:opts.size||S12,bold:!!opts.bold});}
+    function para(children,opts={}){const ind={};if(opts.left!=null)ind.left=opts.left;if(opts.hanging!=null){ind.left=(opts.left||0)+opts.hanging;ind.hanging=opts.hanging;}return new Paragraph({children:Array.isArray(children)?children:[children],alignment:opts.align||AlignmentType.JUSTIFIED,spacing:{before:opts.before||60,after:opts.after||60,line:480},indent:Object.keys(ind).length?ind:undefined});}
+    function empty(){return new Paragraph({children:[txt('')],spacing:{before:0,after:0,line:480}});}
+    function h1(text){return para([txt(text,{bold:true,size:S14})],{before:160,after:80});}
+    function cell(text,opts={}){return new TableCell({children:[new Paragraph({children:[txt(text,{size:opts.size||S12,bold:!!opts.bold})],alignment:opts.align||AlignmentType.CENTER,spacing:{before:50,after:50,line:400}})],borders:ALL,width:opts.w?{size:opts.w,type:WidthType.DXA}:undefined,verticalAlign:VerticalAlign.CENTER,columnSpan:opts.span||1});}
+    function row(cells){return new TableRow({children:cells});}
+
+    // 讀取欄位
+    const location=document.getElementById('location').value||'（地點）';
+    const fireLevel=document.getElementById('fire_level').value||'';
+    const tRp=getTimeStr('tr_rp'),tAr=getTimeStr('tr_ar'),tCt=getTimeStr('tr_ct'),tEx=getTimeStr('tr_ex'),tRs=getTimeStr('tr_rs');
+    const diff=getMin('tr_rs')-getMin('tr_ar');
+    const totalTime=diff>0?`${Math.floor(diff/60)>0?Math.floor(diff/60)+'小時':''}${diff%60>0?diff%60+'分':''}`:''  ;
+    const vNames=['水箱車','直線雲梯車','曲折雲梯車','四輪驅動吉普車/災情勘查車','化學車','化學災害處理車','水庫車','救助器材車','空壓車','排煙車','照明車','消防救災機車','救護車','加護型救護車','幕僚作業車','救災指揮車'];
+    const vCounts=Array.from({length:16},(_,i)=>parseInt(document.getElementById('v'+i).value)||0);
+    const vTotal=vCounts.reduce((a,b)=>a+b,0);
+    const vSummary=vNames.map((n,i)=>vCounts[i]>0?`${n}${vCounts[i]}輛`:null).filter(Boolean).join('、');
+    const ff=document.getElementById('ff_total').value||'0';
+    const vol=document.getElementById('vol_total').value||'0';
+    const wind=document.getElementById('wind_dir').value;
+    const weather=document.getElementById('weather').value;
+    const hum=document.getElementById('humidity').value||'';
+    const cause=document.getElementById('cause').value||'待查';
+    const propLoss=document.getElementById('prop_loss').value||'';
+    const deathCnt=parseInt(document.getElementById('death_cnt').value)||0;
+    const injuryCnt=parseInt(document.getElementById('injury_cnt').value)||0;
+    const roadE=document.getElementById('road_e').value,roadEw=document.getElementById('road_ew').value;
+    const roadS=document.getElementById('road_s').value,roadSw=document.getElementById('road_sw').value;
+    const roadW=document.getElementById('road_w').value,roadWw=document.getElementById('road_ww').value;
+    const roadN=document.getElementById('road_n').value,roadNw=document.getElementById('road_nw').value;
+    const flA=document.getElementById('fl_above').value||'',flB=document.getElementById('fl_below').value||'0';
+    const struct=document.getElementById('structure').value,usage=document.getElementById('usage').value;
+    const bldArea=document.getElementById('bld_area').value||'',burnArea=document.getElementById('burn_area').value||'';
+    const pros=Array.from(document.querySelectorAll('#pros textarea')).map(el=>el.value).filter(Boolean);
+    const cons=Array.from(document.querySelectorAll('#cons textarea')).map(el=>el.value).filter(Boolean);
+    const sugs=Array.from(document.querySelectorAll('#sugs textarea')).map(el=>el.value).filter(Boolean);
+
+    prog(25,'產出壹、火災概要…');
+
+    // 傷亡表欄位
+    function makeCasualtyTable(){return new Table({width:{size:9200,type:WidthType.DXA},rows:[row([cell('編號',{w:600}),cell('姓名',{w:1000}),cell('性別',{w:600}),cell('出生年月日',{w:1400}),cell('身分證字號',{w:1400}),cell('住址',{w:1600}),cell('發現樓層',{w:900}),cell('死傷情形',{w:1000}),cell('備考',{w:700})]),row([cell(''),cell(''),cell(''),cell(''),cell(''),cell(''),cell(''),cell(''),cell('')])]});}
+
+    const sec1=[
+      h1('壹、火災概要：'),
+      para([txt('一、時間：',{bold:true})],{left:IND1,hanging:IND1}),
+      para([txt(`（一）報案：${tRp}。`)],{left:IND2,hanging:IND2}),
+      para([txt(`（二）到達：${tAr}。`)],{left:IND2,hanging:IND2}),
+      para([txt(`（三）控制：${tCt}。`)],{left:IND2,hanging:IND2}),
+      para([txt(`（四）撲滅：${tEx}。`)],{left:IND2,hanging:IND2}),
+      para([txt(`（五）殘火處理：至${tRs}。`)],{left:IND2,hanging:IND2}),
+      para([txt(totalTime?`（救災行動時間【自到達至殘火處理】合計${totalTime}）`:'（救災行動時間請填寫時間後自動計算）')],{left:IND2}),
+      para([txt('二、出動車輛、人員：',{bold:true})],{left:IND1,hanging:IND1}),
+      para([txt(`（一）車輛：出動${vSummary}，合計${vTotal}輛。詳載於附註1-各式消防車輛無線電代號對照表。`)],{left:IND2,hanging:IND2}),
+      para([txt(`（二）人員：合計消防人員${ff}名及義消${vol}名，共計${parseInt(ff)+parseInt(vol)}名。人員名單詳載於附註2-出動人員名單。`)],{left:IND2,hanging:IND2}),
+      para([txt(`三、發生地點：${location}。`,{bold:true})],{left:IND1,hanging:IND1}),
+      para([txt(`四、氣象資料：風向：${wind}、天候：${weather}、相對濕度：${hum}％。`,{bold:true})],{left:IND1,hanging:IND1}),
+      para([txt('五、人員傷亡狀況：',{bold:true})],{left:IND1,hanging:IND1}),
+      para([txt(`（一）死亡${deathCnt}人。`)],{left:IND2,hanging:IND2}),
+    ];
+    const sec1b=[para([txt(`（二）受傷${injuryCnt}人。`)],{left:IND2,hanging:IND2})];
+    const sec1c=[
+      para([txt(`六、財物損失狀況：約計新臺幣${propLoss}。`,{bold:true})],{left:IND1,hanging:IND1}),
+      para([txt(`七、火災發生原因：${cause}。`,{bold:true})],{left:IND1,hanging:IND1}),
+    ];
+
+    prog(40,'產出貳、現場概要…');
+
+    const roadDesc=`火場四周${roadE?`東面臨${roadE}(${roadEw}公尺)`:''} ${roadS?`、南面臨${roadS}(${roadSw}公尺)`:''} ${roadW?`、西面臨${roadW}(${roadWw}公尺)`:''} ${roadN?`、北面臨${roadN}(${roadNw}公尺)`:''}。`.replace(/\s+/g,' ');
+
+    const hydrantRows=Array.from(document.querySelectorAll('.hydrant-item')).map(el=>{
+      const inputs=el.querySelectorAll('input,select');
+      return row([cell(inputs[0]?.value||'',{w:1700,align:AlignmentType.LEFT}),cell(inputs[1]?.value||'',{w:750}),cell(inputs[2]?.value||'',{w:750}),cell(inputs[3]?.value||'',{w:1000}),cell(inputs[4]?.value||'',{w:950}),cell(inputs[5]?.value?inputs[5].value+'公尺':'',{w:1050}),cell(inputs[6]?.value||'',{w:3000})]);
+    });
+
+    // 各分隊行動（從 CSV 或空白）
+    const unitParas=[];
+    if(csvData.length>0){
+      para([txt('（一）人員：')],{left:IND2,hanging:IND2});
+      unitParas.push(para([txt('（一）人員：')],{left:IND2,hanging:IND2}));
+      const numMap=['１','２','３','４','５','６','７','８','９','１０','１１','１２','１３','１４','１５','１６','１７','１８','１９','２０'];
+      csvData.forEach((r,i)=>{
+        const unit=r['填報分隊']||r['分隊']||`分隊${i+1}`;
+        const desc=r['行動敘述']||'';
+        unitParas.push(para([txt(`${numMap[i]||i+1}、${unit}：`)],{left:IND3,hanging:IND3}));
+        if(desc) unitParas.push(para([txt(desc)],{left:IND4}));
+      });
+    } else {
+      unitParas.push(para([txt('（一）人員：')],{left:IND2,hanging:IND2}));
+      unitParas.push(para([txt('（請上傳各分隊填報 CSV 後自動填入，或手動編輯）')],{left:IND3}));
+    }
+
+    prog(60,'產出參、搶救部署…');
+
+    const dynRows=Array.from(document.querySelectorAll('#dynTbody tr')).map((tr,i)=>{
+      const inputs=tr.querySelectorAll('input');
+      return row([cell(String(i+1),{w:500,size:S10}),cell(inputs[0]?.value||'',{w:850,size:S10}),cell(inputs[1]?.value||'',{w:2500,size:S10,align:AlignmentType.LEFT}),cell(inputs[2]?.value||'',{w:5350,size:S10,align:AlignmentType.JUSTIFIED})]);
+    });
+
+    // 搶救部署表（從 CSV 自動建立）
+    const depW=[400,400,800,950,450,450,450,450,450,1050,550,450,700,1700,600,500];
+    const depRows=csvData.length>0?csvData.map((r,i)=>{
+      const unit=r['填報分隊']||'';
+      const v1=r['車輛代號（第1輛）']||'',t1=r['車種（第1輛）']||'';
+      const dep=r['出發時間（第1輛）']||'',arr=r['到達時間（第1輛）']||'';
+      const ws=r['出水開始時間（第1輛）']||'',we=r['出水結束時間（第1輛）']||'';
+      const hose=r['水帶使用條數（第1輛）']||'';
+      const mission=r['第1輛車主要任務']||r['主要任務類型']||'';
+      const depSum=r['第1輛車部署概要']||'';
+      const floor=r['搜救樓層（第1輛）']||'';
+      return row([cell(String(i+1),{w:depW[0],size:S10}),cell('',{w:depW[1],size:S10}),cell(unit,{w:depW[2],size:S10,align:AlignmentType.LEFT}),cell(`${t1}(${v1})`,{w:depW[3],size:S10,align:AlignmentType.LEFT}),cell(dep,{w:depW[4],size:S10}),cell(arr,{w:depW[5],size:S10}),cell(ws,{w:depW[6],size:S10}),cell(we,{w:depW[7],size:S10}),cell('',{w:depW[8],size:S10}),cell(r['水源連接']||'',{w:depW[9],size:S10,align:AlignmentType.LEFT}),cell(hose,{w:depW[10],size:S10}),cell(r['出動人員數（含帶隊官）']||'',{w:depW[11],size:S10}),cell(mission,{w:depW[12],size:S10,align:AlignmentType.LEFT}),cell(depSum,{w:depW[13],size:S10,align:AlignmentType.LEFT}),cell(floor,{w:depW[14],size:S10}),cell(r['救出人數']||'0',{w:depW[15],size:S10})]);
+    }):[row([cell('（上傳 CSV 後自動填入）',{w:9200,span:16,size:S10})])];
+
+    prog(75,'產出肆、檢討分析…');
+
+    const sec4=[
+      empty(),h1('肆、檢討分析及建議：'),
+      para([txt('一、優點：',{bold:true})],{left:IND1,hanging:IND1}),
+      ...(pros.length?pros.map((p,i)=>para([txt(`（${['一','二','三','四','五'][i]||i+1}）${p}`)],{left:IND2,hanging:IND2})):[para([txt('（一）無。')],{left:IND2,hanging:IND2})]),
+      para([txt('二、缺點：',{bold:true})],{left:IND1,hanging:IND1}),
+      ...(cons.length?cons.map((c,i)=>para([txt(`（${['一','二','三','四','五'][i]||i+1}）${c}`)],{left:IND2,hanging:IND2})):[para([txt('（一）無。')],{left:IND2,hanging:IND2})]),
+      para([txt('三、建議事項：',{bold:true})],{left:IND1,hanging:IND1}),
+      ...(sugs.length?sugs.map((s,i)=>para([txt(`（${['一','二','三','四','五'][i]||i+1}）${s}`)],{left:IND2,hanging:IND2})):[para([txt('（一）無。')],{left:IND2,hanging:IND2})]),
+    ];
+
+    prog(85,'產出附註及部署圖…');
+
+    // 附註2（從 CSV 自動彙整）
+    const annex2Paras=csvData.length>0?csvData.map((r,i)=>{
+      const unit=r['填報分隊']||`第${i+1}單位`;
+      const leader=r['帶隊官姓名及職稱']||'';
+      const cnt=r['出動人員數（含帶隊官）']||'';
+      const nums=['一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四','十五','十六','十七','十八','十九','二十'];
+      return para([txt(`${nums[i]||i+1}、${unit}（${cnt}名）：${leader}等。`)],{left:IND1,hanging:IND1});
+    }):[para([txt('（上傳各分隊 CSV 後自動彙整）')],{left:IND1})];
+
+    const depADate=document.getElementById('dep_a_date').value||'隨時報';
+    const depBDate=document.getElementById('dep_b_date').value||'隨時報';
+
+    const children=[
+      // 標題
+      para([txt('臺北市政府消防局火災搶救報告書',{bold:true,size:S16})],{align:AlignmentType.CENTER,before:200,after:200}),
+      // 壹
+      ...sec1,
+      makeCasualtyTable(),...sec1b,makeCasualtyTable(),...sec1c,
+      // 貳
+      empty(),h1('貳、現場概要：'),
+      para([txt(`一、四周道路狀況：${roadDesc}`,{bold:true})],{left:IND1,hanging:IND1}),
+      para([txt(`二、建築物構造：地下${flB}層、地上${flA}層${struct}建築物，${usage}用途。`,{bold:true})],{left:IND1,hanging:IND1}),
+      new Table({width:{size:9200,type:WidthType.DXA},rows:[row([cell('第一面',{w:4600}),cell('第二面',{w:4600})]),row([cell('（照片）',{w:4600}),cell('（照片）',{w:4600})]),row([cell('第三面',{w:4600}),cell('第四面',{w:4600})]),row([cell('（照片）',{w:4600}),cell('（照片）',{w:4600})])]}),
+      empty(),
+      para([txt('三、建築物使用狀況、面積及燒損程度：',{bold:true})],{left:IND1,hanging:IND1}),
+      new Table({width:{size:9200,type:WidthType.DXA},rows:[row([cell('樓層別',{w:1400}),cell('營業別',{w:1000}),cell('建築物面積',{w:1400}),cell('燃燒面積',{w:1400}),cell('備考',{w:4000})]),row([cell(location,{w:1400,align:AlignmentType.LEFT}),cell(usage,{w:1000}),cell(bldArea?bldArea+'平方公尺':'',{w:1400}),cell(burnArea?burnArea+'平方公尺':'',{w:1400}),cell('起火戶（燒損）',{w:4000,align:AlignmentType.LEFT})])]}),
+      new Table({width:{size:9200,type:WidthType.DXA},rows:[row([cell('燃燒情形照片 1',{w:4600}),cell('燃燒情形照片 2',{w:4600})]),row([cell('（照片）',{w:4600}),cell('（照片）',{w:4600})]),row([cell('燃燒情形照片 3',{w:4600}),cell('燃燒情形照片 4',{w:4600})]),row([cell('（照片）',{w:4600}),cell('（照片）',{w:4600})])]}),
+      empty(),
+      para([txt('四、水源狀況：',{bold:true})],{left:IND1,hanging:IND1}),
+      new Table({width:{size:9200,type:WidthType.DXA},rows:[row([cell('消防栓位置',{w:1700}),cell('型式',{w:750}),cell('管徑',{w:750}),cell('使用情形',{w:1000}),cell('使用車輛',{w:950}),cell('距離火場',{w:1050}),cell('備註',{w:3000})]),...hydrantRows]}),
+      empty(),
+      para([txt('五、現場管理：',{bold:true})],{left:IND1,hanging:IND1}),
+      ...unitParas,
+      para([txt('（二）交通：現場由轄區派出所員警協助管制火災現場人、車，並疏導交通維護火場秩序。')],{left:IND2,hanging:IND2}),
+      para([txt('（三）裝備器材：')],{left:IND2,hanging:IND2}),
+      para([txt('（四）媒體：無。')],{left:IND2,hanging:IND2}),
+      para([txt('（五）其他：無。')],{left:IND2,hanging:IND2}),
+      // 參
+      empty(),h1('參、搶救部署狀況：'),
+      para([txt('一、火災動態資料及指揮概況表：',{bold:true})],{left:IND1,hanging:IND1}),
+      new Table({width:{size:9200,type:WidthType.DXA},rows:[row([cell('編號',{w:500,size:S10}),cell('時間',{w:850,size:S10}),cell('動態資料',{w:2500,size:S10}),cell('指揮官處置情形',{w:5350,size:S10})]),...dynRows]}),
+      empty(),
+      para([txt('二、搶救部署行動流程表：',{bold:true})],{left:IND1,hanging:IND1}),
+      new Table({width:{size:9200,type:WidthType.DXA},rows:[row([cell('到達\n順序',{w:depW[0],size:S10}),cell('出動\n梯次',{w:depW[1],size:S10}),cell('出動單位',{w:depW[2],size:S10}),cell('車號',{w:depW[3],size:S10}),cell('出發',{w:depW[4],size:S10}),cell('到達',{w:depW[5],size:S10}),cell('出水\n開始',{w:depW[6],size:S10}),cell('出水\n結束',{w:depW[7],size:S10}),cell('合計',{w:depW[8],size:S10}),cell('水源',{w:depW[9],size:S10}),cell('水帶\n(條)',{w:depW[10],size:S10}),cell('人數',{w:depW[11],size:S10}),cell('任務',{w:depW[12],size:S10}),cell('部署概要',{w:depW[13],size:S10}),cell('搜救\n樓層',{w:depW[14],size:S10}),cell('救出\n人數',{w:depW[15],size:S10})]),...depRows]}),
+      // 肆
+      ...sec4,
+      // 附註1
+      empty(),h1('附註1：各式消防車輛無線電代號對照表'),
+      new Table({width:{size:9200,type:WidthType.DXA},rows:[row([cell('車種',{w:2200}),cell('代號',{w:1200}),cell('備考',{w:5800})]),row([cell('水箱車',{w:2200}),cell('11、12…',{w:1200}),cell('',{w:5800,align:AlignmentType.LEFT})]),row([cell('直線雲梯車',{w:2200}),cell('21、22…',{w:1200}),cell('',{w:5800})]),row([cell('曲折雲梯車',{w:2200}),cell('31、32…',{w:1200}),cell('',{w:5800})]),row([cell('四輪驅動吉普車/災情勘查車',{w:2200}),cell('41、42…',{w:1200}),cell('',{w:5800})]),row([cell('化學車',{w:2200}),cell('51、52…',{w:1200}),cell('',{w:5800})]),row([cell('化學災害處理車',{w:2200}),cell('55',{w:1200}),cell('',{w:5800})]),row([cell('水庫車',{w:2200}),cell('61、62…',{w:1200}),cell('',{w:5800})]),row([cell('救助器材車',{w:2200}),cell('71、72…',{w:1200}),cell('',{w:5800})]),row([cell('空壓車',{w:2200}),cell('75',{w:1200}),cell('',{w:5800})]),row([cell('排煙車',{w:2200}),cell('76',{w:1200}),cell('',{w:5800})]),row([cell('照明車',{w:2200}),cell('81',{w:1200}),cell('',{w:5800})]),row([cell('消防救災機車',{w:2200}),cell('86',{w:1200}),cell('',{w:5800})]),row([cell('救護車',{w:2200}),cell('91、92…',{w:1200}),cell('',{w:5800})]),row([cell('加護型救護車',{w:2200}),cell('95',{w:1200}),cell('',{w:5800})]),row([cell('幕僚作業車',{w:2200}),cell('—',{w:1200}),cell('',{w:5800})]),row([cell('救災指揮車',{w:2200}),cell('—',{w:1200}),cell('',{w:5800})])]}),
+      // 附註2
+      empty(),h1('附註2：出動人員名單'),
+      ...annex2Paras,
+      // 部署圖
+      empty(),
+      para([txt('臺北市政府消防局第一救災救護大隊',{bold:true})],{align:AlignmentType.CENTER}),
+      new Table({width:{size:9200,type:WidthType.DXA},rows:[row([cell('表期',{w:800}),cell(depADate,{w:1200}),cell(`${location}－甲種搶救部署圖`,{w:5200}),cell('',{w:2000})]),row([cell('（甲種搶救部署圖）',{w:9200,span:4})])]}),
+      empty(),
+      para([txt('臺北市政府消防局第一救災救護大隊',{bold:true})],{align:AlignmentType.CENTER}),
+      new Table({width:{size:9200,type:WidthType.DXA},rows:[row([cell('表期',{w:800}),cell(depBDate,{w:1200}),cell(`${location}－乙種搶救部署圖`,{w:5200}),cell('',{w:2000})]),row([cell('（乙種搶救部署圖）',{w:9200,span:4})])]}),
+      // 安全管理照片
+      empty(),
+      new Table({width:{size:9200,type:WidthType.DXA},rows:[row([cell('臺北市政府消防局第一救災救護大隊',{w:4600}),cell(`執行${location}火場救災安全管理照片`,{w:4600})]),row([cell('（安全管理照片）',{w:4600}),cell('',{w:4600})]),row([cell('',{w:9200,span:2,align:AlignmentType.LEFT})])]}),
+    ];
+
+    prog(92,'打包 Word 檔案…');
+
+    const doc=new Document({styles:{default:{document:{run:{font:FONT,size:S12}}}},sections:[{properties:{page:{size:{width:11906,height:16838},margin:{top:1134,right:1134,bottom:1134,left:1417}}},children}]});
+    const buf=await Packer.toBlob(doc);
+    const url=URL.createObjectURL(buf);
+    const a=document.createElement('a');
+    a.href=url;
+    const dateStr=getTimeStr('tr_rp').replace(/年|月/g,'-').replace('日','').replace(/時|分/g,'');
+    a.download=`火災搶救報告書_${location}_${getTimeStr('tr_rp').slice(0,10)}.docx`;
+    a.click();
+    URL.revokeObjectURL(url);
+
+    prog(100,'完成！');
+    document.getElementById('successBanner').style.display='flex';
+  } catch(err) {
+    console.error(err);
+    document.getElementById('progressLabel').textContent='產出失敗：'+err.message;
+    document.getElementById('progressFill').style.background='var(--warn)';
+  } finally {
+    btn.disabled=false;
+  }
+}
+
